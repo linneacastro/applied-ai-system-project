@@ -44,6 +44,25 @@ Since the initial build, the scheduling system has been extended with several im
 - **Recurring tasks** — tasks can be marked `daily` or `weekly`; completing one automatically generates the next occurrence with an advanced due date.
 - **Task filtering** — `Owner.get_tasks()` supports filtering by completion status and/or pet name across all registered pets.
 
+## Testing PawPal+
+
+**Reliability: 5/5 stars** — 37/37 tests passing across all core behaviors.
+
+Run the full test suite with:
+
+```bash
+python3 -m pytest tests/test_pawpal.py -v
+```
+
+The tests cover five core areas:
+
+- **Task validation** — rejects invalid duration, frequency, and pet age values at creation time.
+- **Recurring task logic** — verifies that completing a daily or weekly task generates a new task with the correct advanced due date, including edge cases where the due date is in the past or unset.
+- **Task assignment rules** — confirms a task cannot be assigned to more than one pet, and that removing or completing a task correctly updates assignment state.
+- **Scheduler behavior** — checks that tasks are sorted by priority and preferred category, that the time budget is respected, that the second pass fills remaining gaps, and that tasks exceeding the total budget land in `too_long` rather than `deferred`. Also verifies that scheduled start times are in chronological order.
+- **Conflict detection** — tests `detect_conflicts` directly with overlapping and sequential entries, and confirms `build_plan` produces no warnings for a normally scheduled session.
+- **Owner registration rules** — enforces that a pet cannot be registered to two owners, duplicate pet names are rejected (case-insensitive), and that `get_tasks` filtering by completion status and pet name works correctly.
+
 ### Suggested workflow
 
 1. Read the scenario carefully and identify requirements and edge cases.
