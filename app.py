@@ -17,6 +17,7 @@ with st.form("owner_form"):
     owner_name = st.text_input("Owner name", value="Jordan")
     available_minutes = st.number_input("Available minutes per day", min_value=1, value=120)
     preferences_input = st.text_input("Care preferences (comma-separated)", value="walk, grooming")
+    session_start = st.text_input("Session start time (HH:MM)", value="08:00")
     owner_submitted = st.form_submit_button("Save Owner")
 
 if owner_submitted:
@@ -29,6 +30,7 @@ if owner_submitted:
                 name=owner_name,
                 available_minutes=int(available_minutes),
                 preferences=preferences,
+                session_start=session_start,
             )
             st.success(f"Owner '{owner_name}' saved!")
         except ValueError as e:
