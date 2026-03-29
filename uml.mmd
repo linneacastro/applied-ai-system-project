@@ -1,0 +1,39 @@
+classDiagram
+    class Owner {
+        +String name
+        +int available_minutes
+        +List~String~ preferences
+        +List~Pet~ pets
+        +add_pet(pet: Pet) void
+    }
+
+    class Pet {
+        +String name
+        +String species
+        +int age
+        +List~Task~ tasks
+        +add_task(task: Task) void
+        +edit_task(task: Task) void
+        +remove_task(task: Task) void
+        +get_tasks() List~Task~
+    }
+
+    class Task {
+        +String title
+        +String category
+        +int duration
+        +int priority
+        +bool completed
+        +mark_complete() void
+    }
+
+    class Scheduler {
+        +Owner owner
+        +Pet pet
+        +build_plan() dict
+    }
+
+    Owner "1" --> "1" Pet : owns
+    Pet "1" --> "0..*" Task : has
+    Scheduler --> Owner : reads constraints from
+    Scheduler --> Pet : reads tasks from

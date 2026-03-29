@@ -2,6 +2,13 @@
 
 ## 1. System Design
 
+PawPal+ is a Streamlit app designed to help pet owners stay on top of their pet care routines. It lets users enter basic info about themselves and their pet, add and manage care tasks like walks, feeding, medications, grooming, and enrichment, and then generates a daily schedule based on their available time, task priorities, and preferences. It also explains the reasoning behind the plan it creates, so the owner understands why things were scheduled the way they were.
+
+The three core actions, summarized: 
+1. Enter a pet
+2. Create tasks like walks, grooming, etc.
+3. Generate a daiy schedule and view it
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
