@@ -32,6 +32,18 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## Smarter Scheduling
+
+Since the initial build, the scheduling system has been extended with several improvements:
+
+- **Two-pass greedy scheduling** — tasks that don't fit in the first pass are re-evaluated in a second pass to fill any remaining time, maximizing session utilization.
+- **Session start time** — the owner can set a session start (e.g., `08:00`); all scheduled tasks receive a calculated `start_time` based on that anchor.
+- **Preferred category boosting** — the owner's preferred task categories (e.g., "feeding", "exercise") are promoted in sort order as a tiebreaker between tasks of equal priority and duration.
+- **Deferred vs. too-long classification** — skipped tasks are split into two buckets: tasks that could fit in a longer session (`deferred`) and tasks that exceed the owner's total available time entirely (`too_long`).
+- **Conflict detection** — `detect_conflicts` checks all scheduled entries for time overlaps and returns warning strings, making it possible to flag invalid schedules passed in from external sources.
+- **Recurring tasks** — tasks can be marked `daily` or `weekly`; completing one automatically generates the next occurrence with an advanced due date.
+- **Task filtering** — `Owner.get_tasks()` supports filtering by completion status and/or pet name across all registered pets.
+
 ### Suggested workflow
 
 1. Read the scenario carefully and identify requirements and edge cases.
