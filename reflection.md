@@ -69,15 +69,22 @@ I could do something dynamic like knapsack optimization to maximize total value 
 **a. How you used AI**
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
+
+I used AI tools in all parts of this project - to help me brainstorm the initial UML diagram, to flesh out the skeleton of classes, to then fill out the classes, build tests, and iterate. I feel like I just kept riffing on what I got, and using the AI (Claude) to ask questions and keep going. 
+
 - What kinds of prompts or questions were most helpful?
+
+The most helpful prompts were the ones where I described what I was trying to accomplish and asked for weaknesses in my current approach. Those gave me concrete, actionable feedback rather than vague suggestions. I also used AI to help me think through tradeoffs, like whether to use a greedy approach versus something like knapsack optimization for scheduling. The prompt that I used the most was something like "Please do a runthrough of this file for logic flaws and bottlenecks." I did this until I got to just a few edge cases. 
 
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 
-The assignment asked for 
+When the assignment asked me to add conflict detection, AI suggested implementing a full overlap-checking function — and I did write it. But when I thought about it more, I realized the suggestion didn't fully fit my design: my scheduler stacks tasks back-to-back sequentially, so overlaps are structurally impossible. I kept the detect_conflicts method because it was required, but I pushed back on the idea that it was meaningful for this system. Rather than accepting the AI's framing that "conflict detection = good, add it," I recognized it was a feature that made sense in a different kind of scheduler (one where tasks have fixed or user-assigned times), and noted that for my design it would always return an empty list. That distinction — understanding why a pattern exists before applying it — came from my own evaluation, not the AI's suggestion.
 
 - How did you evaluate or verify what the AI suggested?
+
+I ran the code and checked whether the output matched what the AI described. For logic changes, I traced through the behavior manually and used the test suite as a sanity check. For structural suggestions, I reasoned through the design myself and asked if the scenario the AI was guarding against couldn't happen in my system, I treated the suggestion as a mismatch, even if the code itself was technically correct.
 
 ---
 
@@ -86,12 +93,28 @@ The assignment asked for
 **a. What you tested**
 
 - What behaviors did you test?
+
+I tested five main behavior areas:
+
+Task validation — bad inputs like zero/negative duration, invalid frequency, and negative pet age all raise errors correctly.
+Recurring tasks — completing a daily or weekly task generates the correct next occurrence with the right due date, a new ID, and the same attributes. One-off tasks return None. Completing an already-completed task raises an error.
+Task assignment rules — a task can't be added to two pets at once; removing a task properly unassigns it.
+Scheduler time budget — scheduled tasks stay within the owner's time limit; oversized tasks go to too_long; tasks that fit the budget but got bumped go to deferred; high-priority tasks schedule before low-priority ones; preferred categories are ordered first among equal priorities; start times are chronological.
+Owner registration rules — a pet can't be added to two owners; duplicate pet names (case-insensitive) are rejected; removing a pet clears its owner reference; task filtering by completion status and pet name works correctly.
+
 - Why were these tests important?
+
+The tests mattered because the scheduler's correctness depends on the classes beneath it working exactly right. A task with a bad priority value or a pet with a duplicate name could silently corrupt the schedule. Testing each layer ensured that bugs would surface at their source rather than as mysterious wrong output at the end.
 
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
+
+I'm fairly confident the core logic works correctly. The test suite covers the main scenarios: priority ordering, time budget enforcement, deferred vs. too-long distinctions, and preference-based tiebreaking. That said, the greedy approach has known gaps, and I haven't tested the scheduler against a wide range of real-world inputs through the UI. My confidence is high for the cases I explicitly tested and lower for edge cases I haven't encountered yet.
+
 - What edge cases would you test next if you had more time?
+
+I'd want to test the scheduler through the UI with realistic inputs, like a pet with many tasks of mixed priorities and a tight time budget, to see how the plan looks in practice. I'd also test what happens when all tasks are the same priority and duration, when the owner's available time exactly matches the total task time, and when a recurring task is completed multiple times in a row to make sure the due dates chain correctly.
 
 ---
 
@@ -101,12 +124,16 @@ The assignment asked for
 
 - What part of this project are you most satisfied with?
 
+I'm most satisfied with the process part of the project... so not one particular aspect of it. I love that I got to be hands on with it from the get go because it gives me a template to use with future projects. I really like starting with a UML class diagram because you can start to form an understanding of how things will fit together before even starting to code. 
+
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
-I came up with an interesting situation - the assignment asked me to create a test to detext task conflicts. The way my program was structured, everything was slotted in sequentially, making conflicts impossible. When I implemented this test as requested, it felt a little bit superficial since the situation where it would arise wouldn't occur in my program as designed. This felt like something I put in just for the sake of the assignment.
+I would improve on the actual UI design. I would also improve on how my program was fitting in tasks. It currently was just stacking them in, sort of like a puzzle, but it didn't give any flexibility for going back to edit or reorganize tasks.
 
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+You need an organized, clear process before you start writing code. When I went into AI conversations with a specific question or a concrete piece of code to review, I got much more useful feedback than when I asked something vague. The same was true for the design itself: thinking through the class responsibilities upfront made it easier to catch problems early, like the priority field issue, rather than discovering them after the logic was already built around bad assumptions.
