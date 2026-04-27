@@ -1,6 +1,12 @@
 import re
 import streamlit as st
 from pawpal_system import Priority, Task, Pet, Owner, Scheduler
+from pawpal_rag_service import RagService
+
+
+@st.cache_resource
+def get_rag_service() -> RagService:
+    return RagService()
 
 
 _CONFLICT_RE = re.compile(
@@ -258,3 +264,38 @@ if plan is not None:
             for e in plan["too_long"]
         ])
         st.warning(f"These tasks each exceed your {owner.available_minutes}-min daily budget.")
+
+    st.divider()
+
+    st.subheader("🐾 Why this plan?")
+    st.caption(
+        "Ask PawPal+ for pet-care guidance grounded in our knowledge base. "
+        "Answers cite the source files used."
+    )
+
+    pets_summary = " and ".join(
+        f"{p.age}-year-old {p.species}" for p in owner.pets
+    )
+    default_query = (
+        f"What feeding, walking, and grooming routines should I follow for {pets_summary}?"
+    )
+
+    with st.form("rag_explain_form"):
+        query = st.text_input("Question", value=default_query)
+        explain_submitted = st.form_submit_button("Get answer")
+
+    if explain_submitted and query.strip():
+        service = get_rag_service()
+        try:
+            with st.spinner("Searching knowledge base..."):
+                result = service.explain(query)
+        except Exception as e:
+            st.error(f"Could not generate explanation: {e}")
+        else:
+            st.markdown(result["answer"])
+            if result["sources"]:
+                st.caption("**Sources:** " + ", ".join(result["sources"]))
+            st.caption(
+                f"Tokens used: {result['usage']['input_tokens']} in / "
+                f"{result['usage']['output_tokens']} out"
+            )
