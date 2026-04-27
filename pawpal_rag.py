@@ -7,9 +7,12 @@ Run as a script:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import List, Optional
+
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
