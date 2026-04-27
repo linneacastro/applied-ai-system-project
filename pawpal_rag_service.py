@@ -2,7 +2,12 @@
 
 The index is built once at construction so apps (e.g. Streamlit) can hold a
 single instance and call explain() repeatedly without reloading the model.
+
+Every retrieval and LLM call is logged to logs/pawpal.log for auditability.
 """
+
+import logging
+from pathlib import Path
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
@@ -10,6 +15,18 @@ from dotenv import load_dotenv
 from pawpal_rag import build_index, retrieve
 
 load_dotenv()
+
+LOG_DIR = Path("logs")
+LOG_DIR.mkdir(exist_ok=True)
+
+logger = logging.getLogger("pawpal.rag")
+if not logger.handlers:
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(LOG_DIR / "pawpal.log")
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    )
+    logger.addHandler(handler)
 
 MODEL_NAME = "claude-haiku-4-5"
 
@@ -28,12 +45,17 @@ def _format_context(chunks: list[dict]) -> str:
 
 class RagService:
     def __init__(self) -> None:
+        logger.info("Building knowledge index...")
         self.index = build_index()
+        logger.info("Index built with %d chunks", len(self.index))
         self.client = Anthropic()
 
     def explain(self, query: str, k: int = 3) -> dict:
+        logger.info("explain query=%r k=%d", query, k)
+
         chunks = retrieve(query, self.index, k=k)
         if not chunks:
+            logger.warning("No chunks retrieved for query=%r", query)
             return {
                 "answer": "No relevant context found in the knowledge base.",
                 "sources": [],
@@ -41,15 +63,33 @@ class RagService:
                 "usage": {"input_tokens": 0, "output_tokens": 0},
             }
 
-        user_message = f"Context:\n{_format_context(chunks)}\n\nQuestion: {query}"
-        response = self.client.messages.create(
-            model=MODEL_NAME,
-            max_tokens=500,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_message}],
+        retrieval_summary = ", ".join(
+            f"{c['source']}:{c['score']:.3f}" for c in chunks
         )
+        logger.info("Retrieved %d chunks: %s", len(chunks), retrieval_summary)
+
+        user_message = f"Context:\n{_format_context(chunks)}\n\nQuestion: {query}"
+        try:
+            response = self.client.messages.create(
+                model=MODEL_NAME,
+                max_tokens=500,
+                system=SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_message}],
+            )
+        except Exception:
+            logger.exception("LLM call failed for query=%r", query)
+            raise
+
         answer = "".join(b.text for b in response.content if b.type == "text")
         sources = list(dict.fromkeys(c["source"] for c in chunks))
+
+        logger.info(
+            "Answered query=%r tokens_in=%d tokens_out=%d sources=%s",
+            query,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            sources,
+        )
 
         return {
             "answer": answer,
