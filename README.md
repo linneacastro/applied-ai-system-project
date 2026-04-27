@@ -1,5 +1,9 @@
 # PawPal+ — Pet Care Scheduler with Grounded AI Explanations
 
+## Project Demo Video
+
+[Watch on Loom](https://www.loom.com/share/cc1ffa4728bf4da9b2ea96008a0749ae)
+
 ## Original Project (Module 2)
 
 **PawPal+** started as a Streamlit pet care task scheduler. It lets a busy
