@@ -23,6 +23,8 @@ Pet — represents the pet being cared for; stores basic info like name, species
 Task — represents a single care activity; holds the details like title, category, duration, priority, and whether it's been completed.
 Scheduler — the brain of the app; it reads the owner's time constraints and the pet's task list and uses that information to build a daily care plan.
 
+In Week 9 I added a RagService alongside those four. It loads five pet-care reference docs, retrieves the top matches for a question, and asks Claude Haiku 4.5 to explain the schedule using only that context. It runs next to the Scheduler, not inside it — the Scheduler stays deterministic and the AI can't touch the plan.
+
 **b. Design changes**
 
 - Did your design change during implementation?
@@ -31,6 +33,8 @@ Yes! When I asked about bottlenecks in logic or missing relationships, it return
 - If yes, describe at least one change and why you made it.
 Here is one change made to the Priority. Priority is now  IntEnum (new)
 This replaces the free int field. Callers can now only pass Priority.LOW, Priority.MEDIUM, or Priority.HIGH. Before there could be ambiguous values passed in like 99 or -1 that made their way to build_plan().
+
+A second change came in Week 9: I split the RAG code into `pawpal_rag.py` (load, chunk, embed, retrieve) and `pawpal_rag_service.py` (the class the app holds). Streamlit reruns the script on every interaction, so without that split the embedding model would reload on every click.
 
 ---
 
@@ -70,7 +74,7 @@ I could do something dynamic like knapsack optimization to maximize total value 
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 
-I used AI tools in all parts of this project - to help me brainstorm the initial UML diagram, to flesh out the skeleton of classes, to then fill out the classes, build tests, and iterate. I feel like I just kept riffing on what I got, and using the AI (Claude) to ask questions and keep going. 
+I used AI tools in all parts of this project - to help me brainstorm the initial UML diagram, to flesh out the skeleton of classes, to then fill out the classes, build tests, and iterate. I feel like I just kept riffing on what I got, and using the AI (Claude) to ask questions and keep going. In Week 9 I used it the same way for the RAG layer — sketching the pipeline, sanity-checking the system prompt, and catching Streamlit-specific gotchas like the rerun-cache pattern.
 
 - What kinds of prompts or questions were most helpful?
 
@@ -102,6 +106,8 @@ Task assignment rules — a task can't be added to two pets at once; removing a 
 Scheduler time budget — scheduled tasks stay within the owner's time limit; oversized tasks go to too_long; tasks that fit the budget but got bumped go to deferred; high-priority tasks schedule before low-priority ones; preferred categories are ordered first among equal priorities; start times are chronological.
 Owner registration rules — a pet can't be added to two owners; duplicate pet names (case-insensitive) are rejected; removing a pet clears its owner reference; task filtering by completion status and pet name works correctly.
 
+For the Week 9 RAG layer I tested behavior across the cosine score landscape instead of with unit tests — three queries (direct match at 0.66, tangential at 0.48, off-topic at 0.03) to verify the model answered, hedged, and refused at the right moments. The 37 scheduler tests still pass and run unchanged.
+
 - Why were these tests important?
 
 The tests mattered because the scheduler's correctness depends on the classes beneath it working exactly right. A task with a bad priority value or a pet with a duplicate name could silently corrupt the schedule. Testing each layer ensured that bugs would surface at their source rather than as mysterious wrong output at the end.
@@ -111,6 +117,8 @@ The tests mattered because the scheduler's correctness depends on the classes be
 - How confident are you that your scheduler works correctly?
 
 I'm fairly confident the core logic works correctly. The test suite covers the main scenarios: priority ordering, time budget enforcement, deferred vs. too-long distinctions, and preference-based tiebreaking. That said, the greedy approach has known gaps, and I haven't tested the scheduler against a wide range of real-world inputs through the UI. My confidence is high for the cases I explicitly tested and lower for edge cases I haven't encountered yet.
+
+For the RAG layer my confidence is medium. Three test queries is enough for an MVP, not enough to claim coverage — I'd want a small evaluation set of maybe 20 queries with expected behaviors next.
 
 - What edge cases would you test next if you had more time?
 
@@ -132,8 +140,38 @@ I'm most satisfied with the process part of the project... so not one particular
 
 I would improve on the actual UI design. I would also improve on how my program was fitting in tasks. It currently was just stacking them in, sort of like a puzzle, but it didn't give any flexibility for going back to edit or reorganize tasks.
 
+For the RAG layer I'd expand the test set beyond three queries and surface cosine scores in the UI itself, not just the logs — so the user can see how confident the retrieval was, not just what got cited.
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
 
 You need an organized, clear process before you start writing code. When I went into AI conversations with a specific question or a concrete piece of code to review, I got much more useful feedback than when I asked something vague. The same was true for the design itself: thinking through the class responsibilities upfront made it easier to catch problems early, like the priority field issue, rather than discovering them after the logic was already built around bad assumptions.
+
+---
+
+## 6. Week 9 — RAG Iteration
+
+I added a RAG layer that explains the schedule using five pet-care reference docs. The pipeline is small: chunk, embed, retrieve top-3, hand to Claude Haiku 4.5 with a system prompt that says use only the context, say "I don't know" if it's not enough, and cite the source. The deterministic scheduler is still the source of truth — the AI only explains, it can't edit the plan.
+
+**a. AI collaboration**
+
+One thing the AI got right: it flagged Streamlit's rerun behavior before I hit the bug. Wrapping `RagService` in `@st.cache_resource` and guarding the logger with `if not logger.handlers:` saved me a 90MB model reload on every click and a stack of duplicate log handlers.
+
+One thing it pushed that I didn't take: adding a hard cosine threshold as a guardrail against low-confidence answers. I almost did it. Then I ran my three test queries first, and the prompt grounding handled all of them on its own. The threshold would have added complexity for a problem I couldn't actually reproduce. Validate before defending.
+
+**b. What surprised me**
+
+The senior-cat query (cosine 0.48) was the biggest surprise. I expected Claude to either improvise or refuse. Instead it named the gap out loud — *"the context provided focuses on scheduling rather than diagnosing health symptoms"* — pivoted to the closest relevant chunk, and recommended a vet visit. I had written three rules in the system prompt and the model produced a fourth behavior that fell out of them. That made me trust the prompt-grounding approach more.
+
+---
+
+## 7. Ethics
+
+**a. Limitations and biases**
+
+The knowledge base is the bias. I picked the five reference docs, so everything outside them returns "I don't know" — and a user might not realize the gap is mine, not the model's. The embedding model is general-purpose, so it can miss domain synonyms. The retriever has no minimum score, so weak chunks still reach the LLM (the prompt covers this, the retriever doesn't). And the docs themselves reflect mainstream Western pet-care norms.
+
+**b. Misuse and prevention**
+
+The realistic misuse is someone treating an AI explanation as veterinary advice. I prevent that three ways: the system prompt forces hedging when context is thin, the knowledge base has no diagnostic content, and the model recommends a vet when symptoms come up. The other vector is prompt injection through the user query. I don't filter for it — I just made it structurally toothless. The AI has no tools, no schedule-editing access, and can't write back to the knowledge base. Worst case is a weird chat answer. The schedule stays correct because a Python function produced it, not the LLM.
